@@ -8,6 +8,8 @@ before the code does, so read the trace first:
 Where you edit:   grep -n '✏' agent.py   (six marks, one per place)
 Steps and gates:  https://anthropicpartnerbasecamp.bts.com/
 """
+import re
+from pathlib import Path
 from __future__ import annotations
 from typing import Any, Dict, List
 from support import (MODEL, SYSTEM_PROMPT, call_local, execute_tool, mcp_client,
@@ -17,6 +19,27 @@ from support import (MODEL, SYSTEM_PROMPT, call_local, execute_tool, mcp_client,
 MAX_TOOL_CALLS = 8  # Larkspur's own build capped the loop here; then a human takes over.
 
 TONE_ADDENDUM = ""                       # ✏️ Build 4, step 4.1, intelligence goal
+_FARE_RULES_PATH = Path(__file__).resolve().parent / "data" / "americas" / "fare_rules_excerpt.md"
+_FARE_RULES_TOPICS = {
+    "fare_families": "4. Fare families",
+    "disruption_rebooking": "5. When we delay, cancel or divert your flight",
+    "care_while_waiting": "6. Care while you wait (per passenger)",
+    "automation_limits": "7. What chat automation will not do",
+}
+ 
+ 
+def fare_rules(topic: str) -> Dict[str, Any]:
+    """Quote the Handbook section backing a fare-rules or care question, so the
+    agent cites real policy text instead of paraphrasing it from memory."""
+    heading = _FARE_RULES_TOPICS.get(topic)
+    if heading is None:
+        return {"error": "unknown topic %r, choose one of %s" % (topic, sorted(_FARE_RULES_TOPICS))}
+    text = _FARE_RULES_PATH.read_text(encoding="utf-8")
+    match = re.search(r"### %s\n(.*?)(?=\n### |\Z)" % re.escape(heading), text, re.DOTALL)
+    if not match:
+        return {"error": "section not found in fare_rules_excerpt.md"}
+    return {"topic": topic, "section": heading, "excerpt": match.group(1).strip()}
+
 EXTRA_TOOLS: List[Dict[str, Any]] = [
     {
         "name": "next_available_day",
@@ -33,6 +56,27 @@ EXTRA_TOOLS: List[Dict[str, Any]] = [
                 "cabin": {"type": "string", "enum": ["Y", "J"]}
             },
             "required": ["origin", "dest", "date"],
+        },
+    },
+    {
+        "name": "fare_rules",
+        "description": (
+            "Quote the Larkspur Handbook's own wording on fare rules or care while "
+            "waiting, so you can cite the source instead of paraphrasing it from "
+            "memory. Use when a customer asks WHY they do or don't get something "
+            "(a hotel, a refund, a same-day change) and check_policy's numbers need "
+            "the policy language behind them. Returns the exact excerpt text."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "topic": {
+                    "type": "string",
+                    "enum": list(_FARE_RULES_TOPICS),
+                    "description": "Which Handbook section to quote.",
+                },
+            },
+            "required": ["topic"],
         },
     },
 ]   # ✏️ Build 2, step 2.1: schemas for the tools you add

@@ -18,7 +18,15 @@ from support import (MODEL, SYSTEM_PROMPT, call_local, execute_tool, mcp_client,
 
 MAX_TOOL_CALLS = 8  # Larkspur's own build capped the loop here; then a human takes over.
 
-TONE_ADDENDUM = ""                       # ✏️ Build 4, step 4.1, intelligence goal
+# TONE_ADDENDUM = ""
+TONE_ADDENDUM = (
+    "\n\nIf the customer is angry, abusive or threatens legal action: acknowledge "
+    "the complaint once, in one sentence, without defending or arguing. Do not give "
+    "a normal entitlements rundown as though nothing was said, and do not offer "
+    "refunds, vouchers or goodwill in response to a legal threat. Promise nothing. "
+    "Call escalate_to_human with a short summary of what the customer said and what "
+    "was asked, then tell the customer a person will take over."
+)                       # ✏️ Build 4, step 4.1, intelligence goal
 # _FARE_RULES_PATH = Path(__file__).resolve().parent / "data" / "americas" / "fare_rules_excerpt.md"
 # _FARE_RULES_TOPICS = {
 #     "fare_families": "4. Fare families",
